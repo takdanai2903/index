@@ -43,7 +43,12 @@
 
 <script>
     const LIFF_ID = '2010679197-vXl137uD';
-    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyhHCPTt2fcsF_IiBI8OWIQ8V93s_UC2hOKhT9bH8QflAcJ_2fb5cZDGaKYpLLwds-IVA/exec';
+    
+    // 🎯 ตั้งค่าข้อมูล GitHub ของพี่ตรงนี้:
+    const OWNER = 'takdanai2903'; 
+    const REPO = 'register_log.csv'; 
+    const TOKEN = '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'; 
+
     let userUid = '';
 
     async function main() {
@@ -63,43 +68,52 @@
     document.getElementById('regForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!userUid) {
-            alert('ไม่สามารถดึงข้อมูล Line UID ได้ กรุณาลองใหม่อีกครั้ง');
+            alert('ไม่สามารถดึงข้อมูล LINE UID ได้');
             return;
         }
 
         const submitBtn = document.getElementById('submitBtn');
         const statusMessage = document.getElementById('statusMessage');
         submitBtn.disabled = true;
-        statusMessage.innerText = 'กำลังส่งข้อมูล...';
+        statusMessage.style.color = '#007bff';
+        statusMessage.innerText = 'กำลังส่งข้อมูลเข้าสู่ระบบ GitHub...';
 
         const payload = {
-            uid: userUid,
-            name: document.getElementById('name').value,
-            date: document.getElementById('date').value,
-            start: document.getElementById('startTime').value,
-            end: document.getElementById('endTime').value
+            event_type: "registration_event",
+            client_payload: {
+                uid: userUid,
+                name: document.getElementById('name').value,
+                date: document.getElementById('date').value,
+                start: document.getElementById('startTime').value,
+                end: document.getElementById('endTime').value
+            }
         };
 
         try {
-            const response = await fetch(GAS_WEBAPP_URL, {
+            const url = `https://api.github.com/repos/${OWNER}/${REPO}/dispatches`;
+            const response = await fetch(url, {
                 method: 'POST',
+                headers: {
+                    'Accept': 'application/vnd.github+json',
+                    'Authorization': `Bearer ${TOKEN}`,
+                    'X-GitHub-Api-Version': '2022-11-28'
+                },
                 body: JSON.stringify(payload)
             });
-            const result = await response.text();
-            
-            if (result === 'OK') {
+
+            if (response.status === 204) {
                 statusMessage.style.color = '#06C755';
-                statusMessage.innerText = 'ลงทะเบียนสำเร็จ! กรุณาเช็กข้อความใน LINE';
+                statusMessage.innerText = 'ลงทะเบียนสำเร็จ! ระบบ Node.js กำลังบันทึกไฟล์และส่งข้อความเข้า LINE ของคุณ';
                 document.getElementById('regForm').reset();
-                setTimeout(() => { liff.closeWindow(); }, 2000);
+                setTimeout(() => { liff.closeWindow(); }, 3000);
             } else {
                 statusMessage.style.color = 'red';
-                statusMessage.innerText = 'เกิดข้อผิดพลาดจากระบบหลังบ้าน: ' + result;
+                statusMessage.innerText = 'เกิดข้อผิดพลาดรหัส: ' + response.status;
                 submitBtn.disabled = false;
             }
         } catch (error) {
             statusMessage.style.color = 'red';
-            statusMessage.innerText = 'เครือข่ายขัดข้อง กรุณาลองใหม่';
+            statusMessage.innerText = 'การเชื่อมต่อขัดข้อง กรุณาลองใหม่';
             submitBtn.disabled = false;
         }
     });
