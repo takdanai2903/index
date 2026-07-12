@@ -44,10 +44,9 @@
 <script>
     const LIFF_ID = '2010679197-vXl137uD';
     
-    // 🎯 วางลิงก์ SheetDB ที่ได้จากสเต็ปที่ 1 ตรงนี้ครับ:
+    // 🎯 อย่าลืมเปลี่ยนตรงนี้ให้เป็นลิงก์ SheetDB ของพี่เหมือนเดิมนะครับ:
     const SHEETDB_API_URL = 'https://sheetdb.io/api/v1/630xkz61217fs'; 
 
-    const LINE_TOKEN = 'ak4rGcQnj8q+VTaXJQY+ISjEr76h5PPJfiaTa8KzXpgRjpxZB+QKivbLI2tgHD22wGH9yP86Uiis7y5azIZAejwsMVBmwUrfjpp+JzgRx9wQDuD2XX/mj1ERi/H7sbqna2aQorAX+h2jlpHnmInCGQdB04t89/1O/w1cDnyilFU=';
     let userUid = '';
 
     async function main() {
@@ -75,7 +74,7 @@
         const statusMessage = document.getElementById('statusMessage');
         submitBtn.disabled = true;
         statusMessage.style.color = '#007bff';
-        statusMessage.innerText = 'กำลังบันทึกข้อมูลและส่ง LINE...';
+        statusMessage.innerText = 'กำลังบันทึกข้อมูลเข้า Sheet และส่ง QR Code...';
 
         const name = document.getElementById('name').value;
         const date = document.getElementById('date').value;
@@ -83,7 +82,7 @@
         const end = document.getElementById('endTime').value;
         const timestamp = new Date().toLocaleString('th-TH');
 
-        // 🌟 1. ตรรกะบันทึกข้อมูลลง Google Sheet (ทำแทน Apps Script โดยตรงจากหน้าบ้าน)
+        // 🌟 1. ส่งข้อมูลเข้า Google Sheet ผ่าน SheetDB 
         const sheetPayload = {
             data: [
                 {
@@ -97,56 +96,46 @@
             ]
         };
 
-        // 🌟 2. ตรรกะยิงหา LINE API + เจน QR Code (ทำแทน Apps Script)
+        // 🌟 2. เตรียมข้อมูลส่งกลับเข้าห้องแชทด้วย LIFF (ไม่โดนบล็อก CORS)
         const qrRawData = `${name}|${date}|${start}|${end}`;
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrRawData)}`;
-        
-        const linePayload = {
-            "to": userUid,
-            "messages": [
-                {
-                    "type": "text",
-                    "text": `✨ ลงทะเบียนเข้าพบสำเร็จ!\n👤 ผู้ติดต่อ: ${name}\n📅 วันที่: ${date}\n⏰ เวลา: ${start} - ${end} น.\n\nโปรดใช้ QR Code ด้านล่างนี้ในการสแกนเข้า-ออกพื้นที่ครับ`
-                },
-                {
-                    "type": "image",
-                    "originalContentUrl": qrImageUrl,
-                    "previewImageUrl": qrImageUrl
-                }
-            ]
-        };
 
         try {
-            // ส่งข้อมูลเข้า Google Sheet ผ่าน SheetDB
+            // ยิงเข้า Google Sheet
             const sheetRes = await fetch(SHEETDB_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(sheetPayload)
             });
 
-            // ส่งข้อความเข้า LINE OA ตัวจริง
-            const lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${LINE_TOKEN}`
-                },
-                body: JSON.stringify(linePayload)
-            });
-
-            if (sheetRes.ok) {
-                statusMessage.style.color = '#06C755';
-                statusMessage.innerText = 'ลงทะเบียนสำเร็จเรียบร้อยแล้วครับ!';
-                document.getElementById('regForm').reset();
-                setTimeout(() => { liff.closeWindow(); }, 3000);
-            } else {
-                statusMessage.style.color = 'red';
-                statusMessage.innerText = 'บันทึกข้อมูลเข้าชีตไม่สำเร็จ';
-                submitBtn.disabled = false;
+            if (!sheetRes.ok) {
+                throw new Error('SheetDB Error');
             }
+
+            // ส่งการ์ดข้อความและ QR Code เข้าแชท LINE ทันที
+            if (liff.isInClient()) {
+                await liff.sendMessages([
+                    {
+                        "type": "text",
+                        "text": `✨ ลงทะเบียนเข้าพบสำเร็จ!\n👤 ผู้ติดต่อ: ${name}\n📅 วันที่: ${date}\n⏰ เวลา: ${start} - ${end} น.\n\nโปรดใช้ QR Code ด้านล่างนี้ในการสแกนเข้า-ออกพื้นที่ครับ`
+                    },
+                    {
+                        "type": "image",
+                        "originalContentUrl": qrImageUrl,
+                        "previewImageUrl": qrImageUrl
+                    }
+                ]);
+            }
+
+            statusMessage.style.color = '#06C755';
+            statusMessage.innerText = 'ลงทะเบียนสำเร็จเรียบร้อยแล้ว!';
+            document.getElementById('regForm').reset();
+            setTimeout(() => { liff.closeWindow(); }, 2500);
+
         } catch (error) {
+            console.error(error);
             statusMessage.style.color = 'red';
-            statusMessage.innerText = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+            statusMessage.innerText = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณลองใหม่';
             submitBtn.disabled = false;
         }
     });
