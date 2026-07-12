@@ -44,11 +44,10 @@
 <script>
     const LIFF_ID = '2010679197-vXl137uD';
     
-    // 🎯 ตั้งค่าข้อมูล GitHub ของพี่ตรงนี้:
-    const OWNER = 'takdanai2903'; 
-    const REPO = 'register_log.csv'; 
-    const TOKEN = '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'; 
+    // 🎯 วางลิงก์ SheetDB ที่ได้จากสเต็ปที่ 1 ตรงนี้ครับ:
+    const SHEETDB_API_URL = 'https://sheetdb.io/api/v1/630xkz61217fs'; 
 
+    const LINE_TOKEN = 'ak4rGcQnj8q+VTaXJQY+ISjEr76h5PPJfiaTa8KzXpgRjpxZB+QKivbLI2tgHD22wGH9yP86Uiis7y5azIZAejwsMVBmwUrfjpp+JzgRx9wQDuD2XX/mj1ERi/H7sbqna2aQorAX+h2jlpHnmInCGQdB04t89/1O/w1cDnyilFU=';
     let userUid = '';
 
     async function main() {
@@ -76,44 +75,78 @@
         const statusMessage = document.getElementById('statusMessage');
         submitBtn.disabled = true;
         statusMessage.style.color = '#007bff';
-        statusMessage.innerText = 'กำลังส่งข้อมูลเข้าสู่ระบบ GitHub...';
+        statusMessage.innerText = 'กำลังบันทึกข้อมูลและส่ง LINE...';
 
-        const payload = {
-            event_type: "registration_event",
-            client_payload: {
-                uid: userUid,
-                name: document.getElementById('name').value,
-                date: document.getElementById('date').value,
-                start: document.getElementById('startTime').value,
-                end: document.getElementById('endTime').value
-            }
+        const name = document.getElementById('name').value;
+        const date = document.getElementById('date').value;
+        const start = document.getElementById('startTime').value;
+        const end = document.getElementById('endTime').value;
+        const timestamp = new Date().toLocaleString('th-TH');
+
+        // 🌟 1. ตรรกะบันทึกข้อมูลลง Google Sheet (ทำแทน Apps Script โดยตรงจากหน้าบ้าน)
+        const sheetPayload = {
+            data: [
+                {
+                    "Timestamp": timestamp,
+                    "Line_UID": userUid,
+                    "Name": name,
+                    "Date": date,
+                    "Start_Time": start,
+                    "End_Time": end
+                }
+            ]
+        };
+
+        // 🌟 2. ตรรกะยิงหา LINE API + เจน QR Code (ทำแทน Apps Script)
+        const qrRawData = `${name}|${date}|${start}|${end}`;
+        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrRawData)}`;
+        
+        const linePayload = {
+            "to": userUid,
+            "messages": [
+                {
+                    "type": "text",
+                    "text": `✨ ลงทะเบียนเข้าพบสำเร็จ!\n👤 ผู้ติดต่อ: ${name}\n📅 วันที่: ${date}\n⏰ เวลา: ${start} - ${end} น.\n\nโปรดใช้ QR Code ด้านล่างนี้ในการสแกนเข้า-ออกพื้นที่ครับ`
+                },
+                {
+                    "type": "image",
+                    "originalContentUrl": qrImageUrl,
+                    "previewImageUrl": qrImageUrl
+                }
+            ]
         };
 
         try {
-            const url = `https://api.github.com/repos/${OWNER}/${REPO}/dispatches`;
-            const response = await fetch(url, {
+            // ส่งข้อมูลเข้า Google Sheet ผ่าน SheetDB
+            const sheetRes = await fetch(SHEETDB_API_URL, {
                 method: 'POST',
-                headers: {
-                    'Accept': 'application/vnd.github+json',
-                    'Authorization': `Bearer ${TOKEN}`,
-                    'X-GitHub-Api-Version': '2022-11-28'
-                },
-                body: JSON.stringify(payload)
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(sheetPayload)
             });
 
-            if (response.status === 204) {
+            // ส่งข้อความเข้า LINE OA ตัวจริง
+            const lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${LINE_TOKEN}`
+                },
+                body: JSON.stringify(linePayload)
+            });
+
+            if (sheetRes.ok) {
                 statusMessage.style.color = '#06C755';
-                statusMessage.innerText = 'ลงทะเบียนสำเร็จ! ระบบ Node.js กำลังบันทึกไฟล์และส่งข้อความเข้า LINE ของคุณ';
+                statusMessage.innerText = 'ลงทะเบียนสำเร็จเรียบร้อยแล้วครับ!';
                 document.getElementById('regForm').reset();
                 setTimeout(() => { liff.closeWindow(); }, 3000);
             } else {
                 statusMessage.style.color = 'red';
-                statusMessage.innerText = 'เกิดข้อผิดพลาดรหัส: ' + response.status;
+                statusMessage.innerText = 'บันทึกข้อมูลเข้าชีตไม่สำเร็จ';
                 submitBtn.disabled = false;
             }
         } catch (error) {
             statusMessage.style.color = 'red';
-            statusMessage.innerText = 'การเชื่อมต่อขัดข้อง กรุณาลองใหม่';
+            statusMessage.innerText = 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
             submitBtn.disabled = false;
         }
     });
