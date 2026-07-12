@@ -38,19 +38,18 @@
             <label>เวลาสิ้นสุด</label>
             <input type="time" id="endTime" required>
         </div>
-        <button type="submit" id="submitBtn">ยืนยันการลงทะเบียน</button>
+        <button type="submit" id="submitBtn" disabled>กำลังโหลดระบบ LIFF...</button>
     </form>
     <div id="statusMessage"></div>
 </div>
 
 <script>
-    // 🚨 แก้ไขข้อมูลตรงนี้ให้เป็นของคุณ
     const LIFF_ID = '2010679197-vXl137uD'; 
-    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwimQ6vA7F8K5lvh_aR3ReElbdsn5KHnh63vhXSd84pEq9IQppsVznhSGE0L2dwXeNPEQ/exec';
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyX19AQDrqpjiSCHk9Hrmdf_WBa6lyupEEHJGrOAIXLC1MWrpPCkPLMVPoFDfpHjqeAHw/exec';
     
     let userUid = '';
 
-    async function main() {
+    window.addEventListener('load', async () => {
         try {
             await liff.init({ liffId: LIFF_ID });
             if (!liff.isLoggedIn()) {
@@ -58,53 +57,5 @@
             } else {
                 const profile = await liff.getProfile();
                 userUid = profile.userId;
-            }
-        } catch (err) {
-            showStatus("เกิดข้อผิดพลาดในการโหลดระบบ: " + err.message, "red");
-        }
-    }
-
-    async function submitForm(event) {
-        event.preventDefault();
-        
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.disabled = true;
-        showStatus("กำลังประมวลผล...", "#06C755");
-
-        const payload = {
-            uid: userUid,
-            name: document.getElementById('fullname').value,
-            date: document.getElementById('visitDate').value,
-            start: document.getElementById('startTime').value,
-            end: document.getElementById('endTime').value
-        };
-
-        try {
-            // ใช้ mode: 'no-cors' เพื่อส่งข้อมูลเข้า Google Script ได้ทันทีโดยหน้าเว็บไม่ค้างเติ่ง
-            await fetch(GAS_WEBAPP_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            showStatus("ลงทะเบียนสำเร็จ! บอทกำลังส่ง QR Code...", "green");
-            // ปิดหน้าต่างแอปไลน์อัตโนมัติภายใน 2 วินาทีหลังจากลงทะเบียนเสร็จ
-            setTimeout(() => { liff.closeWindow(); }, 2000);
-
-        } catch (error) {
-            showStatus("เกิดข้อผิดพลาด: " + error.message, "red");
-            submitBtn.disabled = false;
-        }
-    }
-
-    function showStatus(msg, color) {
-        const statusDiv = document.getElementById('statusMessage');
-        statusDiv.innerText = msg;
-        statusDiv.style.color = color;
-    }
-
-    main();
-</script>
-</body>
-</html>
+                
+                const submitBtn = document.getElementById('submitBtn');
