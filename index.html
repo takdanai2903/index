@@ -3,53 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ลงทะเบียนผู้ติดต่อ (Visitor Registration)</title>
+    <title>Visitor Registration</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f7f6; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 400px; box-sizing: border-box; }
-        h2 { text-align: center; color: #333; margin-bottom: 24px; margin-top: 0; }
-        .form-group { margin-bottom: 16px; }
-        label { display: block; margin-bottom: 6px; color: #666; font-size: 14px; }
-        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 12px; background-color: #06C755; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        button:disabled { background-color: #ccc; }
-        #statusMessage { text-align: center; margin-top: 15px; font-weight: bold; }
+        body { font-family: sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .form-container { background: white; max-width: 400px; margin: 0 auto; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 10px; background-color: #06C755; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+        #statusMessage { margin-top: 15px; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>ลงทะเบียนผู้ติดต่อ</h2>
-    <form id="regForm" onsubmit="submitForm(event)">
+<div class="form-container">
+    <h2 style="text-align: center; color: #333;">ลงทะเบียนผู้ติดต่อ</h2>
+    <form id="regForm">
         <div class="form-group">
             <label>ชื่อ-นามสกุล</label>
-            <input type="text" id="fullname" required placeholder="ตัวอย่าง: นายสมชาย ใจดี">
+            <input type="text" id="name" required>
         </div>
         <div class="form-group">
             <label>วันที่เข้าพบ</label>
-            <input type="date" id="visitDate" required>
+            <input type="date" id="date" required>
         </div>
         <div class="form-group">
-            <label>เวลาเริ่มเข้าพบ</label>
+            <label>เวลาเริ่ม</label>
             <input type="time" id="startTime" required>
         </div>
         <div class="form-group">
             <label>เวลาสิ้นสุด</label>
             <input type="time" id="endTime" required>
         </div>
-        <button type="submit" id="submitBtn" disabled>กำลังโหลดระบบ LIFF...</button>
+        <button type="submit" id="submitBtn">ยืนยันการลงทะเบียน</button>
     </form>
     <div id="statusMessage"></div>
 </div>
 
 <script>
-    const LIFF_ID = '2010679197-vXl137uD'; 
-    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyX19AQDrqpjiSCHk9Hrmdf_WBa6lyupEEHJGrOAIXLC1MWrpPCkPLMVPoFDfpHjqeAHw/exec';
-    
+    const LIFF_ID = '2010679197-vXl137uD';
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbw1QfjS50BUcusSIlJaWJt46y7xeaVwZdER0-8ZOc8l3N3cYG3G135263yInHEITOPcIw/exec';
     let userUid = '';
 
-    window.addEventListener('load', async () => {
+    async function main() {
         try {
             await liff.init({ liffId: LIFF_ID });
             if (!liff.isLoggedIn()) {
@@ -57,5 +54,57 @@
             } else {
                 const profile = await liff.getProfile();
                 userUid = profile.userId;
-                
-                const submitBtn = document.getElementById('submitBtn');
+            }
+        } catch (error) {
+            console.error('LIFF Init Error:', error);
+        }
+    }
+
+    document.getElementById('regForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!userUid) {
+            alert('ไม่สามารถดึงข้อมูล Line UID ได้ กรุณาลองใหม่อีกครั้ง');
+            return;
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        submitBtn.disabled = true;
+        statusMessage.innerText = 'กำลังส่งข้อมูล...';
+
+        const payload = {
+            uid: userUid,
+            name: document.getElementById('name').value,
+            date: document.getElementById('date').value,
+            start: document.getElementById('startTime').value,
+            end: document.getElementById('endTime').value
+        };
+
+        try {
+            const response = await fetch(GAS_WEBAPP_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            const result = await response.text();
+            
+            if (result === 'OK') {
+                statusMessage.style.color = '#06C755';
+                statusMessage.innerText = 'ลงทะเบียนสำเร็จ! กรุณาเช็กข้อความใน LINE';
+                document.getElementById('regForm').reset();
+                setTimeout(() => { liff.closeWindow(); }, 2000);
+            } else {
+                statusMessage.style.color = 'red';
+                statusMessage.innerText = 'เกิดข้อผิดพลาดจากระบบหลังบ้าน: ' + result;
+                submitBtn.disabled = false;
+            }
+        } catch (error) {
+            statusMessage.style.color = 'red';
+            statusMessage.innerText = 'เครือข่ายขัดข้อง กรุณาลองใหม่';
+            submitBtn.disabled = false;
+        }
+    });
+
+    main();
+</script>
+</body>
+</html>
