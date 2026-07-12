@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ลงทะเบียนผู้ติดต่อ (Visitor Registration)</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f7f6; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 400px; box-sizing: border-box; }
+        h2 { text-align: center; color: #333; margin-bottom: 24px; margin-top: 0; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; color: #666; font-size: 14px; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background-color: #06C755; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button:disabled { background-color: #ccc; }
+        #statusMessage { text-align: center; margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>ลงทะเบียนผู้ติดต่อ</h2>
+    <form id="regForm" onsubmit="submitForm(event)">
+        <div class="form-group">
+            <label>ชื่อ-นามสกุล</label>
+            <input type="text" id="fullname" required placeholder="ตัวอย่าง: นายสมชาย ใจดี">
+        </div>
+        <div class="form-group">
+            <label>วันที่เข้าพบ</label>
+            <input type="date" id="visitDate" required>
+        </div>
+        <div class="form-group">
+            <label>เวลาเริ่มเข้าพบ</label>
+            <input type="time" id="startTime" required>
+        </div>
+        <div class="form-group">
+            <label>เวลาสิ้นสุด</label>
+            <input type="time" id="endTime" required>
+        </div>
+        <button type="submit" id="submitBtn">ยืนยันการลงทะเบียน</button>
+    </form>
+    <div id="statusMessage"></div>
+</div>
+
+<script>
+    // 🚨 แก้ไขข้อมูลตรงนี้ให้เป็นของคุณ
+    const LIFF_ID = '2010679197-vXl137uD'; 
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxnUqbaxPUgrkKcV6Kgrk52NFXMcZq7f06_XXWugQUUVYD9DekOSfY1HjqBtLNteY5QEw/exec';
+    
+    let userUid = '';
+
+    async function main() {
+        try {
+            await liff.init({ liffId: LIFF_ID });
+            if (!liff.isLoggedIn()) {
+                liff.login();
+            } else {
+                const profile = await liff.getProfile();
+                userUid = profile.userId;
+            }
+        } catch (err) {
+            showStatus("เกิดข้อผิดพลาดในการโหลดระบบ: " + err.message, "red");
+        }
+    }
+
+    async function submitForm(event) {
+        event.preventDefault();
+        
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        showStatus("กำลังประมวลผล...", "#06C755");
+
+        const payload = {
+            uid: userUid,
+            name: document.getElementById('fullname').value,
+            date: document.getElementById('visitDate').value,
+            start: document.getElementById('startTime').value,
+            end: document.getElementById('endTime').value
+        };
+
+        try {
+            // ใช้ mode: 'no-cors' เพื่อส่งข้อมูลเข้า Google Script ได้ทันทีโดยหน้าเว็บไม่ค้างเติ่ง
+            await fetch(GAS_WEBAPP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            showStatus("ลงทะเบียนสำเร็จ! บอทกำลังส่ง QR Code...", "green");
+            // ปิดหน้าต่างแอปไลน์อัตโนมัติภายใน 2 วินาทีหลังจากลงทะเบียนเสร็จ
+            setTimeout(() => { liff.closeWindow(); }, 2000);
+
+        } catch (error) {
+            showStatus("เกิดข้อผิดพลาด: " + error.message, "red");
+            submitBtn.disabled = false;
+        }
+    }
+
+    function showStatus(msg, color) {
+        const statusDiv = document.getElementById('statusMessage');
+        statusDiv.innerText = msg;
+        statusDiv.style.color = color;
+    }
+
+    main();
+</script>
+</body>
+</html>
