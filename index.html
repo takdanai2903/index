@@ -43,8 +43,6 @@
 
 <script>
     const LIFF_ID = '2010679197-vXl137uD';
-    
-    // 🎯 อย่าลืมเปลี่ยนตรงนี้ให้เป็นลิงก์ SheetDB ของพี่เหมือนเดิมนะครับ:
     const SHEETDB_API_URL = 'https://sheetdb.io/api/v1/630xkz61217fs'; 
 
     let userUid = '';
@@ -74,7 +72,7 @@
         const statusMessage = document.getElementById('statusMessage');
         submitBtn.disabled = true;
         statusMessage.style.color = '#007bff';
-        statusMessage.innerText = 'กำลังบันทึกข้อมูลเข้า Sheet และส่ง QR Code...';
+        statusMessage.innerText = 'กำลังบันทึกข้อมูลและส่ง QR Code...';
 
         const name = document.getElementById('name').value;
         const date = document.getElementById('date').value;
@@ -82,7 +80,6 @@
         const end = document.getElementById('endTime').value;
         const timestamp = new Date().toLocaleString('th-TH');
 
-        // 🌟 1. ส่งข้อมูลเข้า Google Sheet ผ่าน SheetDB 
         const sheetPayload = {
             data: [
                 {
@@ -96,23 +93,19 @@
             ]
         };
 
-        // 🌟 2. เตรียมข้อมูลส่งกลับเข้าห้องแชทด้วย LIFF (ไม่โดนบล็อก CORS)
         const qrRawData = `${name}|${date}|${start}|${end}`;
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrRawData)}`;
 
         try {
-            // ยิงเข้า Google Sheet
-            const sheetRes = await fetch(SHEETDB_API_URL, {
+            // 🛠️ ปรับโหมดเป็น no-cors เพื่อทะลวงกำแพงบล็อกของเบราว์เซอร์มือถือ
+            await fetch(SHEETDB_API_URL, {
                 method: 'POST',
+                mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(sheetPayload)
             });
 
-            if (!sheetRes.ok) {
-                throw new Error('SheetDB Error');
-            }
-
-            // ส่งการ์ดข้อความและ QR Code เข้าแชท LINE ทันที
+            // ส่งข้อความกลับเข้าไลน์
             if (liff.isInClient()) {
                 await liff.sendMessages([
                     {
@@ -135,7 +128,7 @@
         } catch (error) {
             console.error(error);
             statusMessage.style.color = 'red';
-            statusMessage.innerText = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณลองใหม่';
+            statusMessage.innerText = 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
             submitBtn.disabled = false;
         }
     });
